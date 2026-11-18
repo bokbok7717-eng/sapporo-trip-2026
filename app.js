@@ -17,18 +17,17 @@ const tabs = $('date-tabs')
 const pages = $('pages')
 const editor = $('editor')
 const status = $('status')
-const login = $('login')
+const shareButton = $('share')
+const linkStorage = 'sapporo-trip-share'
 const panels = []
-let db
-let account = null
+let shareKey
 let rows = new Map()
 let ready = false
 let activeDay = 0
 let edit
 let saving = false
-let generation = 0
 let readId = 0
-let emptyMessage = '로그인하면 이 날짜의 일정을 볼 수 있어요.'
+let emptyMessage = '공유 링크로 열면 이 날짜의 일정을 보고 수정할 수 있어요.'
 
 function make(tag, value, className) {
   const node = document.createElement(tag)
@@ -137,16 +136,44 @@ editor.addEventListener('cancel', (event) => {
   if (saving) event.preventDefault()
 })
 
+async function requestTrip(action, args = {}) {
+  try {
+    const response = await fetch(supabaseUrl + '/rest/v1/rpc/' + action, {
+      method: 'POST',
+      headers: { apikey: publishableKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ share_key: shareKey, ...args }),
+      cache: 'no-store',
+    })
+    const body = await response.json()
+    return response.ok ? { data: body } : { error: body.code ?? 'connection' }
+  } catch {
+    return { error: 'connection' }
+  }
+}
+
+function requireLink(message) {
+  shareKey = undefined
+  try { sessionStorage.removeItem(linkStorage) } catch {}
+  rows.clear()
+  ready = false
+  shareButton.hidden = true
+  if (editor.open) editor.close()
+  emptyMessage = message
+  status.textContent = message
+  render()
+}
+
 async function refresh() {
-  if (!account) return false
-  const token = generation
+  if (!shareKey) return false
   const request = ++readId
-  const { data, error } = await db.from('sapporo_slots')
-    .select('id,day_index,time_label,title,details,plan_label,reservation,editable,revision')
-    .order('day_index').order('sort_order')
-  if (token !== generation || request !== readId) return false
+  const { data, error } = await requestTrip('sapporo_read_shared')
+  if (request !== readId || !shareKey) return false
+  if (error === '42501') {
+    requireLink('공유 링크가 유효하지 않아요. 최신 링크를 열어 주세요.')
+    return false
+  }
   if (error) {
-    status.textContent = '연결이 끊겼어요. 연결이 돌아오면 다시 동기화해요.'
+    status.textContent = '공유 일정에 연결할 수 없어요. 다시 연결하는 중이에요.'
     return false
   }
   const next = new Map(data.map((row) => [row.id, row]))
@@ -154,49 +181,34 @@ async function refresh() {
     data.some((row) => rows.get(row.id)?.revision !== row.revision)
   ready = true
   rows = next
-  emptyMessage = data.length ? '이 날짜에 등록된 일정이 없어요.' : '이 계정에 여행 일정 접근 권한이 없거나 일정이 아직 등록되지 않았어요.'
+  emptyMessage = '이 날짜에 등록된 일정이 없어요.'
+  shareButton.hidden = false
   if (changed) render()
-  status.textContent = data.length ? '공유 일정 연결됨 · 변경사항 자동으로 받는 중' : emptyMessage
-  if (!data.length && editor.open && !saving) editor.close()
+  status.textContent = '공유 일정 연결됨 · 변경사항 자동으로 받는 중'
   return true
-}
-
-function applySession(session) {
-  const next = session?.user.id ?? null
-  if (next === account) return
-  account = next
-  generation++
-  ready = false
-  rows.clear()
-  if (editor.open) editor.close()
-  login.hidden = Boolean(account)
-  $('logout').hidden = !account
-  emptyMessage = account ? '공유 일정을 불러오는 중이에요.' : '로그인하면 이 날짜의 일정을 볼 수 있어요.'
-  status.textContent = emptyMessage
-  render()
-  if (account) void refresh()
 }
 
 $('edit-form').addEventListener('submit', async (event) => {
   event.preventDefault()
-  if (!account || !edit || saving) return
+  if (!shareKey || !edit || saving) return
   const title = $('slot-title').value.trim()
   const details = $('slot-details').value.trim()
   const reservation = title ? $('reservation').value : 'unknown'
   const snapshot = edit
-  const token = generation
   saving = true
   $('save').disabled = true
   $('cancel').disabled = true
   $('edit-status').textContent = '공유 저장 중…'
   try {
-    const { data, error } = await db.from('sapporo_slots')
-      .update({ title, details, reservation })
-      .eq('id', snapshot.id).eq('revision', snapshot.revision).select('id')
-    if (token !== generation) return
-    if (error) {
+    const { data, error } = await requestTrip('sapporo_update_shared', {
+      slot_id: snapshot.id, expected_revision: snapshot.revision,
+      new_title: title, new_details: details, new_reservation: reservation,
+    })
+    if (error === '42501') {
+      requireLink('공유 링크가 유효하지 않아요. 최신 링크를 열어 주세요.')
+    } else if (error) {
       $('edit-status').textContent = '저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.'
-    } else if (!data.length) {
+    } else if (!data) {
       $('edit-status').textContent = '다른 기기에서 먼저 변경했거나 접근 권한이 바뀌었어요.'
       $('latest').hidden = false
       await refresh()
@@ -219,64 +231,38 @@ $('latest').addEventListener('click', async () => {
   }
 })
 
-login.addEventListener('submit', async (event) => {
-  event.preventDefault()
-  const button = login.querySelector('button')
-  const email = $('email').value.trim()
-  const password = $('password').value
-  button.disabled = true
-  status.textContent = '로그인 중이에요.'
+shareButton.addEventListener('click', async () => {
+  const url = new URL('./', location.href)
+  url.hash = new URLSearchParams({ share: shareKey }).toString()
   try {
-    const { data, error } = await db.auth.signInWithPassword({ email, password })
-    if (error) {
-      status.textContent = '로그인할 수 없어요. 이메일과 비밀번호를 다시 확인해 주세요.'
-    } else {
-      $('password').value = ''
-      applySession(data.session)
+    await navigator.clipboard.writeText(url.href)
+    shareButton.textContent = '링크 복사됨'
+    setTimeout(() => { shareButton.textContent = '공유 링크 복사' }, 2000)
+  } catch {
+    status.textContent = '복사하지 못했어요. 처음 받은 공유 링크를 사용해 주세요.'
+  }
+})
+
+function start() {
+  let key = new URLSearchParams(location.hash.slice(1)).get('share')
+  try {
+    if (key === null) key = sessionStorage.getItem(linkStorage)
+    if (/^[0-9a-f]{64}$/.test(key)) {
+      sessionStorage.setItem(linkStorage, key)
+      if (location.hash) history.replaceState(null, '', location.pathname + location.search)
     }
-  } finally {
-    button.disabled = false
-  }
-})
-
-$('logout').addEventListener('click', async () => {
-  const button = $('logout')
-  button.disabled = true
-  try {
-    const { error } = await db.auth.signOut({ scope: 'local' })
-    if (error) status.textContent = '로그아웃하지 못했어요. 다시 시도해 주세요.'
-    else applySession(null)
-  } finally {
-    button.disabled = false
-  }
-})
-
-async function start() {
-  if (!supabaseUrl || !publishableKey) {
-    status.textContent = '공유 저장소 연결을 준비 중이에요.'
-    emptyMessage = '공유 저장소가 연결되면 이 날짜의 일정이 표시돼요.'
-    render()
+  } catch {}
+  if (!/^[0-9a-f]{64}$/.test(key)) {
+    status.textContent = emptyMessage
     return
   }
-  try {
-    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm')
-    db = createClient(supabaseUrl, publishableKey, {
-      auth: { storage: sessionStorage, storageKey: 'sapporo-trip-2026-auth', detectSessionInUrl: false },
-    })
-    const { data: { session } } = await db.auth.getSession()
-    login.hidden = Boolean(session)
-    if (session) applySession(session)
-    else status.textContent = emptyMessage
-    db.auth.onAuthStateChange((_event, next) => {
-      setTimeout(() => applySession(next), 0)
-    })
-    setInterval(() => { if (!document.hidden && !saving) void refresh() }, 4000)
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !saving) void refresh()
-    })
-    window.addEventListener('online', () => void refresh())
-  } catch {
-    status.textContent = '공유 저장소를 연결할 수 없어요. 페이지를 새로고침해 주세요.'
-  }
+  shareKey = key
+  status.textContent = '공유 일정을 불러오는 중이에요.'
+  void refresh()
+  setInterval(() => { if (!document.hidden && !saving) void refresh() }, 4000)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !saving) void refresh()
+  })
+  window.addEventListener('online', () => void refresh())
 }
-void start()
+start()
