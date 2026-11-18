@@ -179,7 +179,9 @@ function render() {
       if (row.details) content.append(make('p', row.details))
       const badges = make('div', '', 'slot-badges')
       if (row.title && reservations[row.reservation]) {
-        badges.append(make('span', reservations[row.reservation], 'badge'))
+        const badge = make('span', reservations[row.reservation], 'badge')
+        badge.dataset.reservation = row.reservation
+        badges.append(badge)
       }
       if (!row.title) badges.append(make('span', '미정', 'badge'))
       if (row.tentative) badges.append(make('span', '후보', 'badge candidate'))
