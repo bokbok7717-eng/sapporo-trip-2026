@@ -6,8 +6,8 @@
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex">
   <title>삿포로 겨울 여행</title>
-  <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./app.js?v=shared-link-1"></script>
+  <link rel="stylesheet" href="./style.css?v=reservations-1">
+  <script type="module" src="./app.js?v=reservations-1"></script>
 </head>
 <body>
   <header class="hero">
@@ -29,16 +29,17 @@
     <form id="edit-form">
       <h2 id="editor-title">일정 편집</h2>
       <p id="edit-time" class="muted"></p>
-      <label for="slot-title">일정 이름</label>
-      <input id="slot-title" maxlength="120" placeholder="입력 필요">
-      <label for="slot-details">메모</label>
-      <textarea id="slot-details" rows="4" maxlength="1200"></textarea>
+      <div id="plan-fields">
+        <label for="slot-title">일정 이름</label>
+        <input id="slot-title" maxlength="120" placeholder="입력 필요">
+        <label for="slot-details">메모</label>
+        <textarea id="slot-details" rows="4" maxlength="1200"></textarea>
+      </div>
       <label for="reservation">예약 상태</label>
       <select id="reservation">
-        <option value="unknown">예약 여부 미확인</option>
-        <option value="pending">예약 필요</option>
+        <option value="pending">예약 전</option>
         <option value="confirmed">예약 완료</option>
-        <option value="none">예약 불필요</option>
+        <option value="unavailable">예약 불가</option>
       </select>
       <p id="edit-status" role="status"></p>
       <div class="actions">
@@ -50,4 +51,3 @@
   </dialog>
 </body>
 </html>
-
