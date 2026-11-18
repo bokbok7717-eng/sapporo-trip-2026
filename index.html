@@ -6,41 +6,52 @@
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex">
   <title>삿포로 겨울 여행</title>
-  <link rel="stylesheet" href="./style.css?v=reservations-1">
-  <script type="module" src="./app.js?v=reservations-1"></script>
+  <link rel="stylesheet" href="./style.css?v=planner-1">
+  <script type="module" src="./app.js?v=planner-1"></script>
 </head>
 <body>
-  <header class="hero">
+  <header class="trip-top">
     <div class="shell">
-      <p class="eyebrow">HOKKAIDO · WINTER 2026</p>
-      <h1>삿포로 겨울 여행</h1>
-      <p class="dates">2026.12.29 – 2027.01.01 <span>·</span> 3박 4일</p>
+      <div class="utility">
+        <h1>✈️ 왕복 항공편 <span>· 현지시간 기준</span></h1>
+        <button id="print" type="button" hidden>🖨️ 일정표 인쇄 / PDF 저장</button>
+      </div>
+      <section id="flights" class="flights" aria-label="항공 일정" hidden></section>
+      <nav id="date-tabs" role="tablist" aria-label="여행 날짜"></nav>
     </div>
   </header>
   <main class="shell">
     <div class="account">
       <p id="status" role="status">여행 일정판을 여는 중이에요.</p>
-      <button id="share" type="button" hidden>공유 링크 복사</button>
+      <div class="toolbar">
+        <button id="share" type="button" hidden>공유 링크 복사</button>
+        <button id="add" type="button" class="primary" hidden>+ 일정 추가</button>
+      </div>
     </div>
-    <nav id="date-tabs" role="tablist" aria-label="여행 날짜"></nav>
     <div class="viewport"><div id="pages"></div></div>
   </main>
   <dialog id="editor" aria-labelledby="editor-title">
     <form id="edit-form">
       <h2 id="editor-title">일정 편집</h2>
       <p id="edit-time" class="muted"></p>
-      <div id="plan-fields">
-        <label for="slot-title">일정 이름</label>
-        <input id="slot-title" maxlength="120" placeholder="입력 필요">
-        <label for="slot-details">메모</label>
-        <textarea id="slot-details" rows="4" maxlength="1200"></textarea>
+      <div class="date-fields">
+        <div><label for="slot-day">날짜</label><select id="slot-day" required></select></div>
+        <div><label for="slot-start">시작 시간</label><input id="slot-start" type="time"></div>
+        <div><label for="slot-end">종료 시간</label><input id="slot-end" type="time"></div>
       </div>
+      <label for="slot-title">일정 이름</label>
+      <input id="slot-title" maxlength="120" placeholder="입력 필요">
+      <label for="slot-place">위치</label>
+      <input id="slot-place" maxlength="240" placeholder="장소명 또는 주소">
       <label for="reservation">예약 상태</label>
       <select id="reservation">
         <option value="pending">예약 전</option>
         <option value="confirmed">예약 완료</option>
         <option value="unavailable">예약 불가</option>
       </select>
+      <label for="slot-details">메모</label>
+      <textarea id="slot-details" rows="3" maxlength="1200"></textarea>
+      <label class="check" for="slot-tentative"><input type="checkbox" id="slot-tentative"> 후보 일정으로 표시</label>
       <p id="edit-status" role="status"></p>
       <div class="actions">
         <button type="button" id="cancel">닫기</button>
