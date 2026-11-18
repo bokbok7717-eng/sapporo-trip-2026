@@ -152,11 +152,12 @@ function mapLink(row, dayIndex) {
           (supplied.hostname === 'www.google.com' && supplied.pathname.startsWith('/maps/'))) url = supplied
     } catch {}
   }
-  const link = make('a', row.map_origin ? 'Google 지도 경로' : 'Google 지도', 'map-link')
+  const label = row.map_origin ? 'Google 지도 경로' : 'Google 지도'
+  const link = make('a', row.map_origin ? '경로 ↗' : '지도 ↗', 'map-link')
   link.href = url.href
   link.target = '_blank'
   link.rel = 'noopener noreferrer'
-  link.setAttribute('aria-label', row.title + ' · ' + link.textContent)
+  link.setAttribute('aria-label', row.title + ' · ' + label)
   return link
 }
 
@@ -170,15 +171,19 @@ function render() {
     for (const row of slots) {
       const item = make('li', '', row.title ? 'slot' : 'slot unplanned')
       if (row.tentative) item.classList.add('is-tentative')
-      const content = make('div')
-      content.append(make('h3', row.title || '입력 필요'))
-      if (!row.title) content.append(make('span', '미정', 'badge'))
-      if (row.tentative) content.append(make('span', '후보', 'badge candidate'))
-      if (row.title && reservations[row.reservation]) {
-        content.append(make('span', reservations[row.reservation], 'badge'))
-      }
+      const content = make('div', '', 'slot-content')
+      const title = make('div', '', 'slot-title-row')
+      title.append(make('h3', row.title || '입력 필요'))
+      if (row.title && (!row.tentative || row.map_query)) title.append(mapLink(row, index))
+      content.append(title)
       if (row.details) content.append(make('p', row.details))
-      if (row.title && (!row.tentative || row.map_query)) content.append(mapLink(row, index))
+      const badges = make('div', '', 'slot-badges')
+      if (row.title && reservations[row.reservation]) {
+        badges.append(make('span', reservations[row.reservation], 'badge'))
+      }
+      if (!row.title) badges.append(make('span', '미정', 'badge'))
+      if (row.tentative) badges.append(make('span', '후보', 'badge candidate'))
+      if (badges.childElementCount) content.append(badges)
       const point = make('span', '', 'point')
       point.setAttribute('aria-hidden', 'true')
       const button = make('button', '편집')

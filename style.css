@@ -84,13 +84,15 @@ button:disabled { opacity: .6; cursor: default; }
 .slot + .slot { border-top: 1px solid #edf2f6; }
 .point { justify-self: center; margin-top: 7px; border: 3px solid #96c5d9; border-radius: 50%; width: 12px; height: 12px; }
 .is-tentative .point { border-color: #d8ad75; }
-.slot h3 { margin: 0 0 5px; font-size: 1.03rem; }
-.slot p { margin: 5px 0; color: var(--muted); font-size: .86rem; white-space: pre-wrap; }
+.slot-content { display: grid; gap: 5px; min-width: 0; }
+.slot-title-row { display: grid; grid-template-columns: minmax(0, max-content) auto; gap: 7px; align-items: center; justify-content: start; }
+.slot h3 { margin: 0; font-size: 1.03rem; }
+.slot p { margin: 0; color: var(--muted); font-size: .86rem; white-space: pre-wrap; }
 .slot time { font-size: .87rem; color: var(--muted); font-weight: 720; font-variant-numeric: tabular-nums; }
 .badge { display: inline-block; margin: 2px 5px 2px 0; border-radius: 8px; padding: 2px 8px; font-size: .74rem; font-weight: 650; background: var(--ice); color: #244f63; }
 .badge.candidate, .unplanned .badge { background: #fff2e0; color: #875925; }
-.map-link { display: inline-flex; align-items: center; min-height: 38px; padding: 4px 9px; margin: 4px 5px 0 0; border: 1px solid #d5e9f2; border-radius: 9px; color: var(--cyan); text-decoration: none; font-size: .8rem; font-weight: 750; }
-.map-link:hover { background: var(--ice); }
+.map-link { display: inline-flex; align-items: center; min-height: 30px; padding: 3px 8px; border-radius: 8px; background: #edf7fb; color: var(--cyan); text-decoration: none; white-space: nowrap; font-size: .76rem; font-weight: 750; }
+.map-link:hover { background: #d9edf6; }
 dialog { width: min(560px, calc(100% - 28px)); max-height: calc(100% - 28px); padding: 18px; color: var(--ink); }
 dialog h2 { margin: 0; font-size: 1.35rem; }
 dialog::backdrop { background: #0b24369c; }
