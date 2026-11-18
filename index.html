@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>삿포로 겨울 여행</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <p class="eyebrow">HOKKAIDO · WINTER 2026</p>
+      <h1>삿포로 겨울 여행</h1>
+      <p class="dates">2026.12.29 – 2027.01.01 <span>·</span> 3박 4일</p>
+    </div>
+  </header>
+  <main class="shell">
+    <div class="account">
+      <p id="status" role="status">여행 일정판을 여는 중이에요.</p>
+      <button id="logout" type="button" hidden>로그아웃</button>
+    </div>
+    <form id="login" hidden>
+      <h2>공유 일정에 로그인</h2>
+      <label for="email">초대받은 이메일</label>
+      <div class="login-row">
+        <input id="email" type="email" autocomplete="email" required>
+        <button type="submit" class="primary">로그인 링크 받기</button>
+      </div>
+      <p class="muted">받은 링크를 일정을 사용할 브라우저에서 열어 주세요.</p>
+    </form>
+    <nav id="date-tabs" role="tablist" aria-label="여행 날짜"></nav>
+    <div class="viewport"><div id="pages"></div></div>
+  </main>
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="edit-form">
+      <h2 id="editor-title">일정 편집</h2>
+      <p id="edit-time" class="muted"></p>
+      <label for="slot-title">일정 이름</label>
+      <input id="slot-title" maxlength="120" placeholder="입력 필요">
+      <label for="slot-details">메모</label>
+      <textarea id="slot-details" rows="4" maxlength="1200"></textarea>
+      <label for="reservation">예약 상태</label>
+      <select id="reservation">
+        <option value="unknown">예약 여부 미확인</option>
+        <option value="pending">예약 필요</option>
+        <option value="confirmed">예약 완료</option>
+        <option value="none">예약 불필요</option>
+      </select>
+      <p id="edit-status" role="status"></p>
+      <div class="actions">
+        <button type="button" id="cancel">닫기</button>
+        <button type="button" id="latest" hidden>최신 일정 불러오기</button>
+        <button type="submit" class="primary" id="save">공유 저장</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
