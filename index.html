@@ -25,11 +25,12 @@
     <form id="login" hidden>
       <h2>공유 일정에 로그인</h2>
       <label for="email">초대받은 이메일</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">비밀번호</label>
+      <input id="password" type="password" autocomplete="current-password" required>
       <div class="login-row">
-        <input id="email" type="email" autocomplete="email" required>
-        <button type="submit" class="primary">로그인 링크 받기</button>
+        <button type="submit" class="primary">로그인</button>
       </div>
-      <p class="muted">받은 링크를 일정을 사용할 브라우저에서 열어 주세요.</p>
     </form>
     <nav id="date-tabs" role="tablist" aria-label="여행 날짜"></nav>
     <div class="viewport"><div id="pages"></div></div>
