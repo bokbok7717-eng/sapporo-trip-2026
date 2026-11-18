@@ -27,15 +27,15 @@ h1 { margin: 0; font-size: clamp(2.25rem, 6vw, 4.6rem); line-height: 1.05; lette
 main { padding-bottom: 54px; }
 .account { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
 #status, .muted { color: var(--muted); font-size: .92rem; }
-#login, .day, dialog { background: var(--white); border: 1px solid var(--line); border-radius: 18px; }
-#login { margin-bottom: 18px; padding: 22px; }
-#login h2, dialog h2 { margin: 0 0 15px; font-size: 1.35rem; }
-.login-row, .actions { display: flex; gap: 10px; flex-wrap: wrap; }
-#login .login-row { margin-top: 14px; }
+.day, dialog { background: var(--white); border: 1px solid var(--line); border-radius: 18px; }
+dialog h2 { margin: 0 0 15px; font-size: 1.35rem; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
 label { display: block; margin: 12px 0 6px; font-weight: 650; }
 input, textarea, select, button { font: inherit; }
 input, textarea, select { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; color: var(--ink); background: #fbfdfe; }
 button { border: 1px solid var(--line); border-radius: 9px; padding: 9px 13px; min-height: 44px; cursor: pointer; background: var(--white); color: var(--deep); font-weight: 650; }
+.map-link { display: inline-flex; align-items: center; min-height: 40px; padding: 5px 10px; margin: 4px 5px 0 0; border: 1px solid var(--line); border-radius: 9px; color: var(--deep); text-decoration: none; font-size: .86rem; font-weight: 650; }
+.map-link:hover { background: #e8f2f7; }
 button:disabled { opacity: .6; cursor: default; }
 :focus-visible { outline: 3px solid #20738f; outline-offset: 3px; }
 .primary, [role="tab"][aria-selected="true"] { background: var(--deep); color: var(--white); border-color: var(--deep); }
