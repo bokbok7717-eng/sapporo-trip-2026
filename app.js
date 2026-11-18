@@ -2,9 +2,9 @@ import { supabaseUrl, publishableKey } from './config.js'
 
 const days = [
   ['12/29', '화', '오타루'],
-  ['12/30', '수', '비에이'],
+  ['12/30', '수', '비에이 투어'],
   ['12/31', '목', '삿포로'],
-  ['1/1', '금', '귀국'],
+  ['01/01', '금', '새해 · 귀국'],
 ]
 const reservations = {
   unknown: '예약 전',
@@ -18,6 +18,13 @@ const pages = $('pages')
 const editor = $('editor')
 const status = $('status')
 const shareButton = $('share')
+const addButton = $('add')
+const flightSection = $('flights')
+const printButton = $('print')
+const flights = [
+  ['outbound', '출발', '나리타 NRT', '신치토세 CTS'],
+  ['return', '귀국', '신치토세 CTS', '나리타 NRT'],
+]
 const linkStorage = 'sapporo-trip-share'
 const panels = []
 let shareKey
@@ -34,6 +41,42 @@ function make(tag, value, className) {
   if (value) node.textContent = value
   if (className) node.className = className
   return node
+}
+
+function clock(minutes) {
+  if (minutes === null || minutes === undefined) return ''
+  return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')
+}
+
+function toMinutes(value) {
+  if (!value) return null
+  const [hours, minutes] = value.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+function renderFlights() {
+  flightSection.replaceChildren()
+  for (const [id, label, from, to] of flights) {
+    const row = rows.get(id)
+    if (!row) continue
+    const [date, weekday] = days[row.day_index]
+    const [month, day] = date.split('/').map(Number)
+    const duration = Number.isInteger(row.end_min) && Number.isInteger(row.start_min) ? row.end_min - row.start_min : null
+    const head = make('div', '', 'flight-top')
+    head.append(make('strong', label + ' · ' + month + '월 ' + day + '일 (' + weekday + ')'))
+    if (duration > 0) head.append(make('small', '비행 ' + Math.floor(duration / 60) + '시간 ' + duration % 60 + '분'))
+    const path = make('div', '', 'flight-path')
+    const departure = make('div', '', 'airport')
+    departure.append(make('b', clock(row.start_min) || '—'), make('small', from))
+    const arrival = make('div', '', 'airport')
+    arrival.append(make('b', clock(row.end_min) || '—'), make('small', to))
+    const line = make('span', '✈', 'flight-line')
+    line.setAttribute('aria-hidden', 'true')
+    path.append(departure, line, arrival)
+    const card = make('article', '', 'flight')
+    card.append(head, path)
+    flightSection.append(card)
+  }
 }
 
 function selectDay(index, focus = false) {
@@ -56,10 +99,18 @@ const resize = new ResizeObserver(() => {
 })
 
 for (const [index, [date, weekday, location]] of days.entries()) {
-  const tab = make('button', date + ' ' + weekday)
+  const tab = make('button')
   tab.type = 'button'
   tab.id = 'tab-' + index
-  tab.append(make('small', location))
+  tab.setAttribute('aria-label', date + ' ' + weekday + ' ' + location)
+  const number = make('span', String(index + 1).padStart(2, '0'), 'day-no')
+  number.setAttribute('aria-hidden', 'true')
+  const copy = make('span', '', 'tab-copy')
+  copy.append(make('b', date + ' · ' + weekday), make('small', location))
+  tab.append(number, copy)
+  const option = make('option', date + ' (' + weekday + ')')
+  option.value = String(index)
+  $('slot-day').append(option)
   tab.setAttribute('role', 'tab')
   tab.setAttribute('aria-controls', 'day-' + index)
   tab.addEventListener('click', () => selectDay(index))
@@ -85,7 +136,7 @@ for (const [index, [date, weekday, location]] of days.entries()) {
 function mapLink(row, dayIndex) {
   const area = dayIndex === 0 ? '오타루' : '삿포로'
   const query = row.map_query || row.title + ' ' + area
-  const url = new URL(row.map_origin ? 'https://www.google.com/maps/dir/' : 'https://www.google.com/maps/search/')
+  let url = new URL(row.map_origin ? 'https://www.google.com/maps/dir/' : 'https://www.google.com/maps/search/')
   url.searchParams.set('api', '1')
   if (row.map_origin) {
     url.searchParams.set('origin', row.map_origin)
@@ -93,6 +144,13 @@ function mapLink(row, dayIndex) {
     url.searchParams.set('travelmode', 'transit')
   } else {
     url.searchParams.set('query', query)
+  }
+  if (!row.map_origin && /^https:\/\//i.test(query)) {
+    try {
+      const supplied = new URL(query)
+      if (supplied.hostname === 'maps.app.goo.gl' ||
+          (supplied.hostname === 'www.google.com' && supplied.pathname.startsWith('/maps/'))) url = supplied
+    } catch {}
   }
   const link = make('a', row.map_origin ? 'Google 지도 경로' : 'Google 지도', 'map-link')
   link.href = url.href
@@ -103,6 +161,7 @@ function mapLink(row, dayIndex) {
 }
 
 function render() {
+  renderFlights()
   const focused = document.activeElement?.dataset.slot
   for (const [index, { list }] of panels.entries()) {
     const slots = Array.from(rows.values()).filter((row) => row.day_index === index)
@@ -110,23 +169,24 @@ function render() {
     if (!slots.length) list.append(make('li', emptyMessage, 'muted'))
     for (const row of slots) {
       const item = make('li', '', row.title ? 'slot' : 'slot unplanned')
+      if (row.tentative) item.classList.add('is-tentative')
       const content = make('div')
       content.append(make('h3', row.title || '입력 필요'))
       if (!row.title) content.append(make('span', '미정', 'badge'))
+      if (row.tentative) content.append(make('span', '후보', 'badge candidate'))
       if (row.title && reservations[row.reservation]) {
         content.append(make('span', reservations[row.reservation], 'badge'))
       }
       if (row.details) content.append(make('p', row.details))
-      if (row.title) content.append(mapLink(row, index))
-      item.append(make('time', row.time_label), content)
-      if (row.editable || (row.title && row.reservation !== 'none')) {
-        const button = make('button', row.editable ? '편집' : '예약 상태')
-        button.type = 'button'
-        button.dataset.slot = row.id
-        button.setAttribute('aria-label', row.editable ? row.time_label + ' 일정 편집' : row.title + ' 예약 상태 변경')
-        button.addEventListener('click', () => openEditor(rows.get(row.id)))
-        item.append(button)
-      }
+      if (row.title && (!row.tentative || row.map_query)) content.append(mapLink(row, index))
+      const point = make('span', '', 'point')
+      point.setAttribute('aria-hidden', 'true')
+      const button = make('button', '편집')
+      button.type = 'button'
+      button.dataset.slot = row.id
+      button.setAttribute('aria-label', (row.title || row.time_label) + ' 일정 편집')
+      button.addEventListener('click', () => openEditor(rows.get(row.id)))
+      item.append(make('time', row.time_label), point, content, button)
       list.append(item)
     }
   }
@@ -140,13 +200,19 @@ selectDay(0)
 render()
 
 function openEditor(row) {
-  edit = row
-  $('editor-title').textContent = row.editable ? '일정 편집' : '예약 상태 변경'
-  $('plan-fields').hidden = !row.editable
-  $('edit-time').textContent = row.editable ? row.time_label : row.time_label + ' · ' + row.title
-  $('slot-title').value = row.title
-  $('slot-details').value = row.details
-  $('reservation').value = ['confirmed', 'unavailable'].includes(row.reservation) ? row.reservation : 'pending'
+  edit = row || { id: 'user-' + crypto.randomUUID(), revision: null }
+  $('editor-title').textContent = row ? '일정 편집' : '일정 추가'
+  $('edit-time').textContent = row?.time_label ? '현재 시간 · ' + row.time_label : ''
+  $('slot-day').value = row?.day_index ?? activeDay
+  $('slot-start').value = clock(row?.start_min)
+  $('slot-end').value = clock(row?.end_min)
+  $('slot-start').required = !row
+  $('slot-title').required = !row || Boolean(row.title)
+  $('slot-title').value = row?.title ?? ''
+  $('slot-place').value = row?.map_query ?? ''
+  $('slot-details').value = row?.details ?? ''
+  $('slot-tentative').checked = row?.tentative ?? false
+  $('reservation').value = ['confirmed', 'unavailable'].includes(row?.reservation) ? row.reservation : 'pending'
   $('edit-status').textContent = ''
   $('latest').hidden = true
   $('save').disabled = false
@@ -154,6 +220,8 @@ function openEditor(row) {
   if (!editor.open) editor.showModal()
 }
 
+addButton.addEventListener('click', () => openEditor())
+printButton.addEventListener('click', () => window.print())
 $('cancel').addEventListener('click', () => editor.close())
 editor.addEventListener('cancel', (event) => {
   if (saving) event.preventDefault()
@@ -180,6 +248,9 @@ function requireLink(message) {
   rows.clear()
   ready = false
   shareButton.hidden = true
+  addButton.hidden = true
+  printButton.hidden = true
+  flightSection.hidden = true
   if (editor.open) editor.close()
   emptyMessage = message
   status.textContent = message
@@ -206,6 +277,9 @@ async function refresh() {
   rows = next
   emptyMessage = '이 날짜에 등록된 일정이 없어요.'
   shareButton.hidden = false
+  addButton.hidden = false
+  printButton.hidden = false
+  flightSection.hidden = false
   if (changed) render()
   status.textContent = '공유 일정 연결됨 · 변경사항 자동으로 받는 중'
   return true
@@ -215,17 +289,24 @@ $('edit-form').addEventListener('submit', async (event) => {
   event.preventDefault()
   if (!shareKey || !edit || saving) return
   const title = $('slot-title').value.trim()
-  const details = $('slot-details').value.trim()
-  const reservation = title ? $('reservation').value : 'pending'
+  const starts = toMinutes($('slot-start').value)
+  const ends = toMinutes($('slot-end').value)
+  if (($('slot-title').required && !title) || (ends !== null && (starts === null || ends < starts))) {
+    $('edit-status').textContent = title ? '종료 시간은 시작 시간 이후로 입력해 주세요.' : '일정 이름을 입력해 주세요.'
+    return
+  }
   const snapshot = edit
+  const day = Number($('slot-day').value)
   saving = true
   $('save').disabled = true
   $('cancel').disabled = true
   $('edit-status').textContent = '공유 저장 중…'
   try {
-    const { data, error } = await requestTrip('sapporo_update_shared', {
-      slot_id: snapshot.id, expected_revision: snapshot.revision,
-      new_title: title, new_details: details, new_reservation: reservation,
+    const { data, error } = await requestTrip('sapporo_save_plan', {
+      slot_id: snapshot.id, expected_revision: snapshot.revision, day_number: day,
+      starts, ends, new_title: title, new_details: $('slot-details').value.trim(),
+      new_place: $('slot-place').value.trim(), new_reservation: title ? $('reservation').value : 'pending',
+      is_tentative: $('slot-tentative').checked,
     })
     if (error === '42501') {
       requireLink('공유 링크가 유효하지 않아요. 최신 링크를 열어 주세요.')
@@ -233,10 +314,11 @@ $('edit-form').addEventListener('submit', async (event) => {
       $('edit-status').textContent = '저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.'
     } else if (!data) {
       $('edit-status').textContent = '다른 기기에서 먼저 변경했거나 접근 권한이 바뀌었어요.'
-      $('latest').hidden = false
+      $('latest').hidden = snapshot.revision === null
       await refresh()
     } else {
       editor.close()
+      selectDay(day)
       await refresh()
     }
   } finally {
