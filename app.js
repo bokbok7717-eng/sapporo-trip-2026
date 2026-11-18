@@ -223,17 +223,17 @@ login.addEventListener('submit', async (event) => {
   event.preventDefault()
   const button = login.querySelector('button')
   const email = $('email').value.trim()
-  const emailRedirectTo = new URL('./', location.href).href
+  const password = $('password').value
   button.disabled = true
-  status.textContent = '로그인 링크를 요청 중이에요.'
+  status.textContent = '로그인 중이에요.'
   try {
-    const { error } = await db.auth.signInWithOtp({ email, options: {
-      emailRedirectTo,
-      shouldCreateUser: false,
-    } })
-    status.textContent = error
-      ? '로그인 링크를 보낼 수 없어요. 초대받은 이메일과 메일 설정을 확인해 주세요.'
-      : '로그인 링크를 보냈어요. 메일함을 확인해 주세요.'
+    const { data, error } = await db.auth.signInWithPassword({ email, password })
+    if (error) {
+      status.textContent = '로그인할 수 없어요. 이메일과 비밀번호를 다시 확인해 주세요.'
+    } else {
+      $('password').value = ''
+      applySession(data.session)
+    }
   } finally {
     button.disabled = false
   }
@@ -261,7 +261,7 @@ async function start() {
   try {
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm')
     db = createClient(supabaseUrl, publishableKey, {
-      auth: { storage: sessionStorage, storageKey: 'sapporo-trip-2026-auth' },
+      auth: { storage: sessionStorage, storageKey: 'sapporo-trip-2026-auth', detectSessionInUrl: false },
     })
     const { data: { session } } = await db.auth.getSession()
     login.hidden = Boolean(session)
