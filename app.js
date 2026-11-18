@@ -7,10 +7,10 @@ const days = [
   ['1/1', '금', '귀국'],
 ]
 const reservations = {
-  unknown: '예약 여부 미확인',
-  pending: '예약 필요',
+  unknown: '예약 전',
+  pending: '예약 전',
   confirmed: '예약 완료',
-  none: '예약 불필요',
+  unavailable: '예약 불가',
 }
 const $ = (id) => document.getElementById(id)
 const tabs = $('date-tabs')
@@ -82,6 +82,26 @@ for (const [index, [date, weekday, location]] of days.entries()) {
   resize.observe(section)
 }
 
+function mapLink(row, dayIndex) {
+  const area = dayIndex === 0 ? '오타루' : '삿포로'
+  const query = row.map_query || row.title + ' ' + area
+  const url = new URL(row.map_origin ? 'https://www.google.com/maps/dir/' : 'https://www.google.com/maps/search/')
+  url.searchParams.set('api', '1')
+  if (row.map_origin) {
+    url.searchParams.set('origin', row.map_origin)
+    url.searchParams.set('destination', query)
+    url.searchParams.set('travelmode', 'transit')
+  } else {
+    url.searchParams.set('query', query)
+  }
+  const link = make('a', row.map_origin ? 'Google 지도 경로' : 'Google 지도', 'map-link')
+  link.href = url.href
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  link.setAttribute('aria-label', row.title + ' · ' + link.textContent)
+  return link
+}
+
 function render() {
   const focused = document.activeElement?.dataset.slot
   for (const [index, { list }] of panels.entries()) {
@@ -91,18 +111,19 @@ function render() {
     for (const row of slots) {
       const item = make('li', '', row.title ? 'slot' : 'slot unplanned')
       const content = make('div')
-      content.append(
-        make('h3', row.title || '입력 필요'),
-        make('span', row.title ? row.plan_label : '미정', 'badge'),
-      )
-      if (row.title) content.append(make('span', reservations[row.reservation], 'badge'))
+      content.append(make('h3', row.title || '입력 필요'))
+      if (!row.title) content.append(make('span', '미정', 'badge'))
+      if (row.title && reservations[row.reservation]) {
+        content.append(make('span', reservations[row.reservation], 'badge'))
+      }
       if (row.details) content.append(make('p', row.details))
+      if (row.title) content.append(mapLink(row, index))
       item.append(make('time', row.time_label), content)
-      if (row.editable) {
-        const button = make('button', '편집')
+      if (row.editable || (row.title && row.reservation !== 'none')) {
+        const button = make('button', row.editable ? '편집' : '예약 상태')
         button.type = 'button'
         button.dataset.slot = row.id
-        button.setAttribute('aria-label', row.time_label + ' 일정 편집')
+        button.setAttribute('aria-label', row.editable ? row.time_label + ' 일정 편집' : row.title + ' 예약 상태 변경')
         button.addEventListener('click', () => openEditor(rows.get(row.id)))
         item.append(button)
       }
@@ -120,10 +141,12 @@ render()
 
 function openEditor(row) {
   edit = row
-  $('edit-time').textContent = row.time_label
+  $('editor-title').textContent = row.editable ? '일정 편집' : '예약 상태 변경'
+  $('plan-fields').hidden = !row.editable
+  $('edit-time').textContent = row.editable ? row.time_label : row.time_label + ' · ' + row.title
   $('slot-title').value = row.title
   $('slot-details').value = row.details
-  $('reservation').value = row.reservation
+  $('reservation').value = ['confirmed', 'unavailable'].includes(row.reservation) ? row.reservation : 'pending'
   $('edit-status').textContent = ''
   $('latest').hidden = true
   $('save').disabled = false
@@ -193,7 +216,7 @@ $('edit-form').addEventListener('submit', async (event) => {
   if (!shareKey || !edit || saving) return
   const title = $('slot-title').value.trim()
   const details = $('slot-details').value.trim()
-  const reservation = title ? $('reservation').value : 'unknown'
+  const reservation = title ? $('reservation').value : 'pending'
   const snapshot = edit
   saving = true
   $('save').disabled = true
